@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="en" class="h-full dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dentiscan DSD Studio</title>
+    <meta name="description" content="Professional 2D Digital Smile Design (DSD) PWA studio with tooth library, 2-click calibration, facial reference lines, and PPTX/PDF/JPG clinical exports." />
+    <meta property="og:title" content="Dentiscan DSD Studio" />
+    <meta property="og:description" content="Professional 2D Digital Smile Design (DSD) PWA studio with tooth library, 2-click calibration, facial reference lines, and PPTX/PDF/JPG clinical exports." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome 6.5.1 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'monospace'],
+            },
+            colors: {
+              dsd: {
+                bg: '#090d16',
+                panel: '#0f172a',
+                card: '#1e293b',
+                border: '#334155',
+                primary: '#2563eb',
+                accent: '#38bdf8'
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Core Clinical Libraries (STRICT CDN REQUIREMENTS) -->
+    <!-- Fabric.js v5.3.1 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <!-- PptxGenJS v3.12.0 -->
+    <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <!-- jsPDF v2.5.1 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Client-Side HEIC/HEIF iPhone Converter -->
+    <script src="./assets/heic2any.min.js"></script>
+
+    <style>
+      /* Custom clinical scrollbars */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0f172a;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+      }
+      .canvas-container {
+        margin: 0 auto;
+        touch-action: none;
+      }
+      /* Mobile touch optimization */
+      button, label, input, select {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mobile-sheet-open {
+        transform: translateY(0%) !important;
+      }
+      .safe-bottom {
+        padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+      }
+
+      /* MOBILE LANDSCAPE CLINICAL ADAPTIVE STYLES */
+      @media (orientation: landscape) and (max-height: 540px) {
+        header {
+          height: 2.5rem !important; /* 40px */
+          padding-left: 0.6rem !important;
+          padding-right: 0.6rem !important;
+        }
+        header .text-slate-400 {
+          display: none !important;
+        }
+        #canvas-toolbar-header {
+          height: 2rem !important; /* 32px */
+          padding-left: 0.5rem !important;
+          padding-right: 0.5rem !important;
+        }
+        #mobile-bottom-nav {
+          height: 2.75rem !important; /* 44px */
+          padding-top: 0.15rem !important;
+          padding-bottom: 0.15rem !important;
+        }
+        #mobile-bottom-nav .mobile-tab-btn {
+          padding-top: 0.15rem !important;
+          padding-bottom: 0.15rem !important;
+        }
+        #mobile-bottom-nav .mobile-tab-btn i {
+          font-size: 0.85rem !important;
+          margin-bottom: 0px !important;
+        }
+        #mobile-bottom-nav .mobile-tab-btn span {
+          font-size: 0.55rem !important;
+        }
+        main {
+          padding-bottom: 2.75rem !important;
+        }
+        #dsd-copilot-launcher {
+          bottom: 3.2rem !important;
+          right: 0.75rem !important;
+          transform: scale(0.88);
+        }
+        #dsd-copilot-modal {
+          height: 100vh !important;
+          max-height: 100vh !important;
+          top: 0 !important;
+          bottom: 0 !important;
+          right: 0 !important;
+          left: auto !important;
+          width: 380px !important;
+          max-width: 85vw !important;
+          border-radius: 1rem 0 0 1rem !important;
+        }
+        #mobile-bottom-sheet {
+          max-height: 90vh !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="h-full bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans select-none">
+
+    <!-- HEADER NAVIGATION BAR -->
+    <header class="h-14 bg-slate-900 border-b border-slate-800 px-3 md:px-4 flex items-center justify-between shrink-0 z-20">
+      <!-- Left: Brand & Clinical Title -->
+      <div class="flex items-center gap-2 md:gap-3">
+        <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-blue-600 to-sky-500 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
+          <i class="fa-solid fa-tooth text-white text-sm md:text-base"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-xs md:text-sm tracking-tight text-white">DENTISCAN DSD</span>
+            <span class="text-[9px] md:text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800 hidden xs:inline-block">2D</span>
+          </div>
+          <div class="text-[10px] text-slate-400 hidden sm:block">Digital Smile Design & Biometric Analysis</div>
+        </div>
+      </div>
+
+      <!-- Center: Patient & Case Info Bar -->
+      <div class="flex items-center gap-1.5 md:gap-2 bg-slate-800/80 border border-slate-700/80 rounded-lg px-2 md:px-3 py-1 text-xs">
+        <div class="flex items-center gap-1">
+          <i class="fa-solid fa-user text-slate-400 text-[10px] md:text-[11px]"></i>
+          <span class="text-slate-400 text-[10px] hidden md:inline">Patient:</span>
+          <input id="patient-name-input" type="text" value="Jane Doe" class="bg-transparent text-white font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 w-20 sm:w-28 md:w-32 text-xs" />
+        </div>
+        <span class="text-slate-600 hidden sm:inline">|</span>
+        <div class="hidden sm:flex items-center gap-1">
+          <i class="fa-solid fa-folder text-slate-400 text-[10px] md:text-[11px]"></i>
+          <span class="text-slate-400 text-[10px] hidden md:inline">Case:</span>
+          <input id="case-id-input" type="text" value="DSD-2026-041" class="bg-transparent text-slate-300 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1 w-20 md:w-24" />
+        </div>
+      </div>
+
+      <!-- Right: Copilot CTA, Mobile Camera Upload, Calibration CTA, Undo/Redo & Export Menu -->
+      <div class="flex items-center gap-1.5 md:gap-2">
+        <!-- Direct Header Clinical Copilot Button (Always visible on all screens) -->
+        <button id="btn-header-copilot" class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white shadow-md shadow-blue-600/30 border border-sky-400/40 transition-all active:scale-95 shrink-0" title="مساعد الابتسامة الذكي (DSD Clinical Copilot)">
+          <i class="fa-solid fa-wand-magic-sparkles text-amber-300 text-xs animate-pulse"></i>
+          <span class="inline font-bold">المساعد</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+        </button>
+
+        <!-- Mobile Direct Upload Button -->
+        <label for="patient-file-input" class="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 text-sky-400 hover:text-sky-300 hover:bg-slate-700 border border-slate-700 cursor-pointer transition-colors" title="Upload Patient Photo (Supports iPhone HEIC & High-Res)">
+          <i class="fa-solid fa-camera text-xs"></i>
+        </label>
+
+        <!-- 2-Click Calibration CTA -->
+        <button id="btn-start-calibration" class="flex items-center gap-1.5 px-2 md:px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/20 transition-all active:scale-95 shrink-0">
+          <i class="fa-solid fa-ruler-combined text-xs"></i>
+          <span class="hidden sm:inline">2-Click </span><span>Calibrate</span>
+        </button>
+
+        <!-- Undo / Redo -->
+        <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-0.5">
+          <button id="btn-undo" title="Undo (Ctrl+Z)" disabled class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 rounded transition-colors">
+            <i class="fa-solid fa-rotate-left text-xs"></i>
+          </button>
+          <button id="btn-redo" title="Redo (Ctrl+Y)" disabled class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 rounded transition-colors">
+            <i class="fa-solid fa-rotate-right text-xs"></i>
+          </button>
+        </div>
+
+        <!-- Desktop Export Menu Dropdown Group (hidden on mobile, mobile has bottom bar sheet) -->
+        <div class="relative group hidden lg:block">
+          <button class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 shadow-sm transition-all">
+            <i class="fa-solid fa-file-export text-sky-400"></i>
+            <span>Export</span>
+            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+          </button>
+
+          <div class="absolute right-0 top-full mt-1.5 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1.5 hidden group-hover:block z-50">
+            <button id="export-jpg" class="w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-slate-800 text-slate-200">
+              <i class="fa-solid fa-file-image text-emerald-400 w-4 text-center"></i>
+              <div>
+                <div class="font-medium">High-DPI JPG</div>
+                <div class="text-[10px] text-slate-400">2x Retina Image (Clean)</div>
+              </div>
+            </button>
+            <button id="export-pdf" class="w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-slate-800 text-slate-200">
+              <i class="fa-solid fa-file-pdf text-rose-400 w-4 text-center"></i>
+              <div>
+                <div class="font-medium">Clinical PDF Report</div>
+                <div class="text-[10px] text-slate-400">A4 Landscape with Specs</div>
+              </div>
+            </button>
+            <button id="export-pptx" class="w-full text-left px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-slate-800 text-slate-200">
+              <i class="fa-solid fa-file-powerpoint text-orange-400 w-4 text-center"></i>
+              <div>
+                <div class="font-medium">PowerPoint (.pptx)</div>
+                <div class="text-[10px] text-slate-400">16:9 Before & After Deck</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN CLINICAL WORKSPACE (RESPONSIVE 3-COLUMN OR FULL MOBILE VIEWPORT) -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+      <!-- LEFT SIDEBAR: PATIENT, TOOTH LIBRARY & OVERLAYS (DESKTOP) -->
+      <aside id="left-sidebar" class="hidden lg:flex w-72 bg-slate-900 border-r border-slate-800 flex-col shrink-0 overflow-y-auto">
+        <div class="p-3 space-y-4">
+
+          <!-- 1. PATIENT PHOTO & SAMPLES -->
+          <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-3">
+            <div class="flex items-center justify-between mb-2.5">
+              <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-camera text-blue-400 text-xs"></i>
+                Patient Portrait
+              </span>
+              <label for="patient-file-input" class="cursor-pointer text-[11px] font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                <i class="fa-solid fa-upload"></i> Upload
+              </label>
+            </div>
+
+            <!-- Sample Patient Presets -->
+            <div class="space-y-1.5">
+              <div class="text-[10px] font-medium text-slate-400">Clinical Demo Presets:</div>
+              <div class="grid grid-cols-1 gap-1.5">
+                <button data-sample-patient="coachman_master" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg bg-gradient-to-r from-blue-900/70 to-slate-800 hover:from-blue-800 text-blue-200 flex items-center justify-between border border-blue-600/50 shadow-sm transition-colors">
+                  <span class="truncate"><i class="fa-solid fa-star text-amber-400 mr-2"></i>DSD Master Case (PPTX Slide)</span>
+                  <i class="fa-solid fa-chevron-right text-[10px] text-blue-300"></i>
+                </button>
+                <button data-sample-patient="female_smile" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-between border border-slate-700/60 transition-colors">
+                  <span class="truncate"><i class="fa-solid fa-user-tag text-blue-400 mr-2"></i>Female Smile (Frontal)</span>
+                  <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+                </button>
+                <button data-sample-patient="male_smile" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-between border border-slate-700/60 transition-colors">
+                  <span class="truncate"><i class="fa-solid fa-user-tag text-emerald-400 mr-2"></i>Male Incisal Wear</span>
+                  <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+                </button>
+                <button data-sample-patient="retracted_intraoral" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-between border border-slate-700/60 transition-colors">
+                  <span class="truncate"><i class="fa-solid fa-ruler text-amber-400 mr-2"></i>Retracted (20mm Ruler)</span>
+                  <i class="fa-solid fa-chevron-right text-[10px] text-slate-500"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. VISAGISM & ANATOMIC TOOTH LIBRARY (FROM DSD_OPTIMIZED.PPTX) -->
+          <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-3 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-tooth text-blue-400 text-xs"></i>
+                Visagism Tooth Library
+              </span>
+              <span class="text-[10px] text-blue-400 font-medium px-1.5 py-0.5 rounded bg-blue-950 border border-blue-800/60">PPTX Master</span>
+            </div>
+
+            <!-- 4 Visagism Archetype Tabs -->
+            <div>
+              <div class="text-[10px] font-medium text-slate-400 mb-1.5">Visagism Archetype (Slide 2-7):</div>
+              <div class="grid grid-cols-2 gap-1">
+                <button data-archetype="oval" class="archetype-tab-btn py-1 px-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-md shadow-blue-600/30 border border-blue-500 transition-all flex items-center gap-1.5">
+                  <span>🌟</span>
+                  <div class="text-left leading-tight">
+                    <div class="font-bold text-[11px]">Oval</div>
+                    <div class="text-[9px] opacity-80">الحساس (Melancholic)</div>
+                  </div>
+                </button>
+                <button data-archetype="triangular" class="archetype-tab-btn py-1 px-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-all flex items-center gap-1.5">
+                  <span>⚡</span>
+                  <div class="text-left leading-tight">
+                    <div class="font-bold text-[11px]">Triangular</div>
+                    <div class="text-[9px] opacity-80">الحركي (Sanguine)</div>
+                  </div>
+                </button>
+                <button data-archetype="rectangular" class="archetype-tab-btn py-1 px-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-all flex items-center gap-1.5">
+                  <span>🏛️</span>
+                  <div class="text-left leading-tight">
+                    <div class="font-bold text-[11px]">Rectangular</div>
+                    <div class="text-[9px] opacity-80">القوي (Choleric)</div>
+                  </div>
+                </button>
+                <button data-archetype="square" class="archetype-tab-btn py-1 px-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-all flex items-center gap-1.5">
+                  <span>⚖️</span>
+                  <div class="text-left leading-tight">
+                    <div class="font-bold text-[11px]">Square</div>
+                    <div class="text-[9px] opacity-80">الهادئ (Phlegmatic)</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Active Visagism Traits Banner -->
+            <div class="bg-slate-900/90 border border-slate-700/70 rounded-lg p-2 text-xs space-y-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span id="visagism-title" class="font-bold text-sky-300">Oval (Melancholic)</span>
+                <span id="visagism-ar-name" class="text-slate-400 text-[10px]">البيضاوي (الحساس المنظم)</span>
+              </div>
+              <p id="visagism-traits" class="text-[10px] text-slate-300 line-clamp-1">Sensitive, Organized, Perfectionist, Artistic, Timid, Reserved</p>
+              <div class="pt-0.5 text-[9px] text-slate-400 border-t border-slate-800 flex items-center gap-1">
+                <i class="fa-solid fa-circle-check text-emerald-400 text-[8px]"></i>
+                <span id="visagism-clinical" class="truncate">Dominant Centrals, Rounded cusps, Delicate laterals, Round Arch</span>
+              </div>
+            </div>
+
+            <!-- Full Arch Templates -->
+            <div class="grid grid-cols-2 gap-1.5">
+              <button data-tooth-action="arch6" class="col-span-1 px-2 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-blue-900/60 to-slate-800 hover:from-blue-800 text-blue-200 border border-blue-800/60 flex items-center justify-center gap-1.5 transition-all">
+                <i class="fa-solid fa-grip-lines"></i>
+                <span>Ant. 6-Arch</span>
+              </button>
+              <button data-tooth-action="arch8" class="col-span-1 px-2 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-slate-800 to-sky-950/60 hover:from-slate-700 text-sky-200 border border-sky-800/60 flex items-center justify-center gap-1.5 transition-all">
+                <i class="fa-solid fa-bars-staggered"></i>
+                <span>Full 8-Arch</span>
+              </button>
+            </div>
+
+            <!-- Individual Teeth Grid (FDI Upper Arch with PPTX Shapes) -->
+            <div class="space-y-1.5">
+              <div class="text-[10px] font-medium text-slate-400">Individual Teeth (#14 to #24):</div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <!-- Right Side (Patient 11, 12, 13, 14) -->
+                <button data-tooth-action="centralRight" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                  <span>Central #11</span>
+                  <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">8.5mm</span>
+                </button>
+                <button data-tooth-action="centralLeft" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                  <span>Central #21</span>
+                  <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">8.5mm</span>
+                </button>
+                <button data-tooth-action="lateralRight" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                  <span>Lateral #12</span>
+                  <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">6.5mm</span>
+                </button>
+                <button data-tooth-action="lateralLeft" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                  <span>Lateral #22</span>
+                  <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">6.5mm</span>
+                </button>
+                <button data-tooth-action="canineRight" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                  <span>Canine #13</span>
+                  <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">7.5mm</span>
+                </button>
+                <button data-tooth-action="canineLeft" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                  <span>Canine #23</span>
+                  <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">7.5mm</span>
+                </button>
+                <button data-tooth-action="premolarRight" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                  <span>Premolar #14</span>
+                  <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">7.0mm</span>
+                </button>
+                <button data-tooth-action="premolarLeft" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                  <span>Premolar #24</span>
+                  <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">7.0mm</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- PPTX Extra Dental Guides (Slide 6 & 8) -->
+            <div class="pt-2 border-t border-slate-800 space-y-1.5">
+              <div class="text-[10px] font-medium text-slate-400">Anatomic Curves & Facial Guides:</div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <button data-pptx-tool="smileArc" class="px-2 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 flex items-center justify-center gap-1.5 border border-slate-700/60">
+                  <i class="fa-solid fa-bezier-curve"></i>
+                  <span>Smile Arc</span>
+                </button>
+                <button data-pptx-tool="facialAxis" class="px-2 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 flex items-center justify-center gap-1.5 border border-slate-700/60">
+                  <i class="fa-solid fa-arrows-split-up-and-left"></i>
+                  <span>Facial Axes</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- PPTX Real Rulers (Slide 6) -->
+            <div class="pt-2 border-t border-slate-800 space-y-1.5">
+              <div class="text-[10px] font-medium text-slate-400">Clinical Rulers from Slide 6:</div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <button data-pptx-tool="ruler20_img" class="px-2 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 flex items-center justify-center gap-1.5 border border-slate-700/60" title="Authentic 20mm Scale from PPTX">
+                  <i class="fa-solid fa-ruler"></i>
+                  <span>20mm Ruler</span>
+                </button>
+                <button data-pptx-tool="ruler35_img" class="px-2 py-1.5 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 flex items-center justify-center gap-1.5 border border-slate-700/60" title="Authentic 35mm Scale from PPTX">
+                  <i class="fa-solid fa-ruler-combined"></i>
+                  <span>35mm Ruler</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. FACIAL & DENTAL REFERENCE LINES -->
+          <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-bezier-curve text-blue-400 text-xs"></i>
+                Reference Overlays
+              </span>
+            </div>
+            <div class="space-y-1.5">
+              <button id="toggle-midline" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg bg-blue-600 text-white flex items-center justify-between border border-slate-700/60 transition-colors">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-arrows-up-down text-red-400"></i>Facial Midline (Red)</span>
+                <i class="fa-solid fa-eye text-xs"></i>
+              </button>
+              <button id="toggle-interpupillary" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg bg-blue-600 text-white flex items-center justify-between border border-slate-700/60 transition-colors">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-arrows-left-right text-blue-400"></i>Interpupillary Line</span>
+                <i class="fa-solid fa-eye text-xs"></i>
+              </button>
+              <button id="toggle-commissural" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center justify-between border border-slate-700/60 transition-colors">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-minus text-emerald-400"></i>Commissural Line</span>
+                <i class="fa-solid fa-eye text-xs"></i>
+              </button>
+              <button id="toggle-smilearc" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center justify-between border border-slate-700/60 transition-colors">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-wave-square text-cyan-400"></i>Smile Arc Curve</span>
+                <i class="fa-solid fa-eye text-xs"></i>
+              </button>
+              <button id="toggle-goldengrid" class="w-full text-left px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 flex items-center justify-between border border-slate-700/60 transition-colors">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-table-cells text-amber-400"></i>Golden Proportion Grid</span>
+                <i class="fa-solid fa-eye text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- 4. SHADE & APPEARANCE CONTROLS -->
+          <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-3">
+            <div class="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+              <i class="fa-solid fa-palette text-blue-400 text-xs"></i>
+              Enamel Shade & Opacity
+            </div>
+
+            <!-- Shade selectors -->
+            <div class="grid grid-cols-3 gap-1.5 mb-3">
+              <button data-shade="bleach" class="shade-selector-btn ring-2 ring-blue-500 border-blue-400 px-2 py-1.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center gap-1 border border-slate-700 transition-all">
+                <div class="w-4 h-4 rounded-full bg-white border border-slate-300 shadow-sm"></div>
+                <span>Bleach BL1</span>
+              </button>
+              <button data-shade="a1" class="shade-selector-btn px-2 py-1.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center gap-1 border border-slate-700 transition-all">
+                <div class="w-4 h-4 rounded-full bg-amber-50 border border-amber-200 shadow-sm"></div>
+                <span>Shade A1</span>
+              </button>
+              <button data-shade="a2" class="shade-selector-btn px-2 py-1.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center gap-1 border border-slate-700 transition-all">
+                <div class="w-4 h-4 rounded-full bg-amber-100 border border-amber-300 shadow-sm"></div>
+                <span>Shade A2</span>
+              </button>
+              <button data-shade="a3" class="shade-selector-btn px-2 py-1.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex flex-col items-center gap-1 border border-slate-700 transition-all">
+                <div class="w-4 h-4 rounded-full bg-amber-200 border border-amber-400 shadow-sm"></div>
+                <span>Shade A3</span>
+              </button>
+              <button data-shade="outline" class="shade-selector-btn col-span-2 px-2 py-1.5 text-[11px] rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center gap-2 border border-slate-700 transition-all">
+                <div class="w-4 h-4 rounded-full border-2 border-blue-400 bg-transparent"></div>
+                <span>Wireframe Mode</span>
+              </button>
+            </div>
+
+            <!-- Opacity Slider -->
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <span>Tooth Opacity</span>
+                <span id="object-opacity-value" class="font-mono text-blue-400">85%</span>
+              </div>
+              <input id="object-opacity-slider" type="range" min="15" max="100" value="85" class="w-full accent-blue-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg" />
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
+      <!-- CENTER VIEWPORT: CANVAS WORKSPACE -->
+      <main class="flex-1 flex flex-col bg-slate-950 relative overflow-hidden pb-16 lg:pb-0">
+
+        <!-- CANVAS TOOLBAR HEADER -->
+        <div class="h-11 bg-slate-900/90 backdrop-blur border-b border-slate-800 px-3 md:px-4 flex items-center justify-between shrink-0 z-10">
+          <!-- Left: Tool selector (Select vs Pan) -->
+          <div class="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg p-0.5">
+            <button id="tool-select" title="Select / Move Tool (V)" class="px-2.5 py-1 rounded text-xs font-semibold bg-blue-600 text-white transition-colors">
+              <i class="fa-solid fa-arrow-pointer mr-1"></i><span class="hidden xs:inline">Select</span>
+            </button>
+            <button id="tool-pan" title="Pan Canvas (H or Spacebar)" class="px-2.5 py-1 rounded text-xs font-semibold text-slate-400 hover:text-white transition-colors">
+              <i class="fa-solid fa-hand mr-1"></i><span class="hidden xs:inline">Pan</span>
+            </button>
+          </div>
+
+          <!-- Center: Calibration Status Strip -->
+          <div class="flex items-center gap-1.5 md:gap-2 text-xs">
+            <div id="calib-status-badge" class="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span> <span class="hidden sm:inline">Calibrated</span>
+            </div>
+            <span class="text-slate-600 hidden md:inline">·</span>
+            <span id="calib-ratio-text" class="text-[11px] text-slate-400 font-mono hidden md:inline">1 mm = 11.20 px</span>
+          </div>
+
+          <!-- Right: Zoom Controls -->
+          <div class="flex items-center gap-1">
+            <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-0.5">
+              <button id="btn-zoom-out" title="Zoom Out" class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-white rounded transition-colors">
+                <i class="fa-solid fa-minus text-xs"></i>
+              </button>
+              <span id="zoom-percentage" class="text-xs font-mono px-1.5 md:px-2 text-slate-300">100%</span>
+              <button id="btn-zoom-in" title="Zoom In" class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-white rounded transition-colors">
+                <i class="fa-solid fa-plus text-xs"></i>
+              </button>
+            </div>
+            <button id="btn-zoom-reset" title="Reset Zoom to 100%" class="px-2 py-1 text-xs text-slate-400 hover:text-white bg-slate-800 border border-slate-700 rounded-lg transition-colors">
+              <i class="fa-solid fa-expand"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- CANVAS CONTAINER (RESPONSIVE VIEWPORT) -->
+        <div id="canvas-viewport" class="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center bg-[#070b12] border-2 border-transparent transition-colors">
+          <canvas id="dsd-canvas"></canvas>
+
+          <!-- FLOATING QUICK-ACTION TOOLBAR (WHEN OBJECT IS SELECTED) -->
+          <div id="floating-object-bar" class="hidden absolute top-3 md:top-4 left-1/2 transform -translate-x-1/2 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl shadow-2xl px-2.5 md:px-3 py-1.5 flex items-center gap-1.5 md:gap-2 z-20 max-w-[95vw] overflow-x-auto">
+            <button id="btn-flip-h" title="Flip Horizontally" class="p-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded transition-colors flex items-center gap-1 shrink-0">
+              <i class="fa-solid fa-arrows-split-up-and-left"></i><span class="hidden sm:inline">Flip H</span>
+            </button>
+            <div class="h-4 w-px bg-slate-700 shrink-0"></div>
+            <button id="btn-duplicate" title="Duplicate (Ctrl+D)" class="p-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded transition-colors flex items-center gap-1 shrink-0">
+              <i class="fa-solid fa-clone"></i><span class="hidden sm:inline">Duplicate</span>
+            </button>
+            <div class="h-4 w-px bg-slate-700 shrink-0"></div>
+            <button id="btn-bring-fwd" title="Bring Forward" class="p-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded transition-colors shrink-0">
+              <i class="fa-solid fa-arrow-up text-xs"></i>
+            </button>
+            <button id="btn-send-bwd" title="Send Backward" class="p-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-800 rounded transition-colors shrink-0">
+              <i class="fa-solid fa-arrow-down text-xs"></i>
+            </button>
+            <div class="h-4 w-px bg-slate-700 shrink-0"></div>
+            <button id="btn-delete" title="Delete (Del)" class="p-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 rounded transition-colors flex items-center gap-1 shrink-0">
+              <i class="fa-solid fa-trash-can"></i><span class="hidden sm:inline">Delete</span>
+            </button>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- RIGHT SIDEBAR: REAL-TIME BIOMETRIC INSPECTOR & LAYER MANAGER (DESKTOP) -->
+      <aside id="right-sidebar" class="hidden lg:flex w-72 bg-slate-900 border-l border-slate-800 flex-col shrink-0 overflow-y-auto">
+        <div class="p-3 space-y-4">
+
+          <!-- 1. REAL-TIME TOOTH DIMENSION INSPECTOR -->
+          <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-ruler-combined text-blue-400 text-xs"></i>
+                Biometric Inspector
+              </span>
+              <span class="text-[10px] text-blue-400 font-mono">Calibrated (mm)</span>
+            </div>
+
+            <!-- When no tooth is selected -->
+            <div id="inspect-empty" class="text-center py-4 text-slate-500 text-xs">
+              <i class="fa-solid fa-mouse-pointer text-base mb-1 text-slate-600"></i>
+              <p>Select a tooth or arch on canvas to view real millimeters</p>
+            </div>
+
+            <!-- When tooth is selected -->
+            <div id="inspect-data" class="hidden space-y-2.5">
+              <div class="flex items-center justify-between border-b border-slate-700/60 pb-1.5">
+                <span class="text-xs text-slate-400">Element:</span>
+                <span id="inspect-name" class="text-xs font-semibold text-slate-100 truncate">Central (#11)</span>
+              </div>
+
+              <!-- Dimensions Grid -->
+              <div class="grid grid-cols-2 gap-2">
+                <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/50">
+                  <div class="text-[10px] uppercase font-semibold text-slate-400">Width</div>
+                  <div id="inspect-width-mm" class="text-base font-bold text-sky-400 font-mono">8.50 mm</div>
+                </div>
+                <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-700/50">
+                  <div class="text-[10px] uppercase font-semibold text-slate-400">Height</div>
+                  <div id="inspect-height-mm" class="text-base font-bold text-sky-400 font-mono">10.50 mm</div>
+                </div>
+              </div>
+
+              <!-- W/H Proportion Analysis -->
+              <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/50 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-[11px] text-slate-300">W/H Proportion:</span>
+                  <span id="inspect-ratio" class="text-sm font-bold text-emerald-400 font-mono">80.9%</span>
+                </div>
+                <div id="inspect-ratio-badge" class="text-xs px-2 py-0.5 rounded font-medium bg-emerald-950 text-emerald-300 border border-emerald-800">
+                  Ideal Aesthetic Ratio (75–85%)
+                </div>
+                <div class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+                  <span>Rotation Angle:</span>
+                  <span id="inspect-angle" class="font-mono text-slate-300">0°</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. LAYER MANAGER -->
+          <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-3 flex flex-col max-h-72">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-layer-group text-blue-400 text-xs"></i>
+                Canvas Layers
+              </span>
+            </div>
+            <div id="layer-list" class="space-y-1 overflow-y-auto flex-1 pr-1">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- 3. CLINICAL ESTHETIC CHECKLIST -->
+          <div class="bg-slate-800/60 border border-slate-800 rounded-xl p-3">
+            <div class="text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <i class="fa-solid fa-clipboard-check text-blue-400 text-xs"></i>
+              Esthetic Criteria
+            </div>
+            <div class="space-y-1.5 text-xs text-slate-300">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i>
+                <span>Midline on Facial Axis</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i>
+                <span>Incisal Plane Horizontal</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i>
+                <span>Smile Arc Follows Lower Lip</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-circle-check text-emerald-400 text-[11px]"></i>
+                <span>Golden Ratio (1.618 : 1.0 : 0.618)</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
+    </div>
+
+    <!-- UNIVERSAL FILE INPUT (SUPPORTS ALL BROWSERS + IPHONE HEIC/HEIF) -->
+    <input id="patient-file-input" type="file" accept="image/*,.heic,.heif,.HEIC,.HEIF" class="hidden" />
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR (< lg screens) -->
+    <nav id="mobile-bottom-nav" class="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex items-center justify-around px-1 z-40 safe-bottom">
+      <button data-mobile-tab="copilot" id="mobile-nav-copilot-tab" class="mobile-tab-btn flex-1 py-1 flex flex-col items-center justify-center text-amber-300 hover:text-amber-200 transition-colors relative">
+        <div class="relative flex items-center justify-center">
+          <i class="fa-solid fa-wand-magic-sparkles text-base mb-0.5"></i>
+          <span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        </div>
+        <span class="text-[10px] font-bold">المساعد</span>
+      </button>
+      <button data-mobile-tab="teeth" class="mobile-tab-btn flex-1 py-1.5 flex flex-col items-center justify-center text-slate-400 hover:text-blue-400 transition-colors">
+        <i class="fa-solid fa-tooth text-base mb-0.5"></i>
+        <span class="text-[10px] font-medium">Teeth</span>
+      </button>
+      <button data-mobile-tab="guides" class="mobile-tab-btn flex-1 py-1.5 flex flex-col items-center justify-center text-slate-400 hover:text-blue-400 transition-colors">
+        <i class="fa-solid fa-compass-drafting text-base mb-0.5"></i>
+        <span class="text-[10px] font-medium">Guides</span>
+      </button>
+      <button data-mobile-tab="shade" class="mobile-tab-btn flex-1 py-1.5 flex flex-col items-center justify-center text-slate-400 hover:text-blue-400 transition-colors">
+        <i class="fa-solid fa-palette text-base mb-0.5"></i>
+        <span class="text-[10px] font-medium">Shade</span>
+      </button>
+      <button data-mobile-tab="inspect" class="mobile-tab-btn flex-1 py-1.5 flex flex-col items-center justify-center text-slate-400 hover:text-blue-400 transition-colors">
+        <i class="fa-solid fa-ruler-combined text-base mb-0.5"></i>
+        <span class="text-[10px] font-medium">Inspect</span>
+      </button>
+      <button data-mobile-tab="export" class="mobile-tab-btn flex-1 py-1.5 flex flex-col items-center justify-center text-slate-400 hover:text-blue-400 transition-colors">
+        <i class="fa-solid fa-share-nodes text-base mb-0.5"></i>
+        <span class="text-[10px] font-medium">Export</span>
+      </button>
+    </nav>
+
+    <!-- MOBILE BOTTOM SHEET BACKDROP & MODAL -->
+    <div id="mobile-sheet-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity duration-300"></div>
+
+    <div id="mobile-bottom-sheet" class="fixed bottom-0 left-0 right-0 max-h-[80vh] bg-slate-900 border-t border-slate-700 rounded-t-2xl z-50 transform translate-y-full transition-transform duration-300 flex flex-col shadow-2xl safe-bottom">
+      <!-- Drag Handle & Header -->
+      <div class="pt-2 pb-1 px-4 flex flex-col shrink-0 border-b border-slate-800">
+        <div class="w-12 h-1 bg-slate-600 rounded-full mx-auto mb-2"></div>
+        <div class="flex items-center justify-between pb-1.5">
+          <div class="flex items-center gap-2">
+            <i id="mobile-sheet-icon" class="fa-solid fa-tooth text-blue-400 text-sm"></i>
+            <h3 id="mobile-sheet-title" class="font-bold text-sm text-white">Tooth Library & Archetypes</h3>
+          </div>
+          <button id="btn-close-sheet" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:text-white">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sheet Scrollable Body -->
+      <div id="mobile-sheet-content" class="p-3.5 overflow-y-auto space-y-3">
+        <!-- 1. TAB: TEETH & VISAGISM -->
+        <div id="pane-mobile-teeth" class="mobile-pane space-y-3">
+          <!-- Visagism 4 Tabs -->
+          <div>
+            <div class="text-[11px] font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+              <span>Visagism Archetypes:</span>
+              <span class="text-[10px] text-blue-400 font-mono">dsd_optimized.pptx</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button data-archetype="oval" class="archetype-tab-btn py-1.5 px-2 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-md border border-blue-500 transition-all flex items-center gap-2">
+                <span>🌟</span>
+                <div class="text-left leading-tight">
+                  <div class="font-bold text-[11px]">Oval</div>
+                  <div class="text-[9px] opacity-80">الحساس المنظم</div>
+                </div>
+              </button>
+              <button data-archetype="triangular" class="archetype-tab-btn py-1.5 px-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-all flex items-center gap-2">
+                <span>⚡</span>
+                <div class="text-left leading-tight">
+                  <div class="font-bold text-[11px]">Triangular</div>
+                  <div class="text-[9px] opacity-80">الحركي المتفائل</div>
+                </div>
+              </button>
+              <button data-archetype="rectangular" class="archetype-tab-btn py-1.5 px-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-all flex items-center gap-2">
+                <span>🏛️</span>
+                <div class="text-left leading-tight">
+                  <div class="font-bold text-[11px]">Rectangular</div>
+                  <div class="text-[9px] opacity-80">القوي القيادي</div>
+                </div>
+              </button>
+              <button data-archetype="square" class="archetype-tab-btn py-1.5 px-2 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-all flex items-center gap-2">
+                <span>⚖️</span>
+                <div class="text-left leading-tight">
+                  <div class="font-bold text-[11px]">Square</div>
+                  <div class="text-[9px] opacity-80">الهادئ الدبلوماسي</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Full Arch Fast Insert -->
+          <div class="grid grid-cols-2 gap-2">
+            <button data-tooth-action="arch6" class="px-3 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-blue-900/80 to-slate-800 text-blue-200 border border-blue-700/60 flex items-center justify-center gap-2 shadow-sm">
+              <i class="fa-solid fa-grip-lines"></i>
+              <span>Add Ant. 6-Arch</span>
+            </button>
+            <button data-tooth-action="arch8" class="px-3 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-slate-800 to-sky-950/80 text-sky-200 border border-sky-700/60 flex items-center justify-center gap-2 shadow-sm">
+              <i class="fa-solid fa-bars-staggered"></i>
+              <span>Add Full 8-Arch</span>
+            </button>
+          </div>
+
+          <!-- Individual FDI Teeth Grid -->
+          <div class="space-y-1.5">
+            <div class="text-[11px] font-semibold text-slate-400">Tap to add individual tooth:</div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button data-tooth-action="centralRight" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                <span>Central #11</span>
+                <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">8.5mm</span>
+              </button>
+              <button data-tooth-action="centralLeft" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                <span>Central #21</span>
+                <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">8.5mm</span>
+              </button>
+              <button data-tooth-action="lateralRight" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                <span>Lateral #12</span>
+                <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">6.5mm</span>
+              </button>
+              <button data-tooth-action="lateralLeft" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                <span>Lateral #22</span>
+                <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">6.5mm</span>
+              </button>
+              <button data-tooth-action="canineRight" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                <span>Canine #13</span>
+                <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">7.5mm</span>
+              </button>
+              <button data-tooth-action="canineLeft" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                <span>Canine #23</span>
+                <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">7.5mm</span>
+              </button>
+              <button data-tooth-action="premolarRight" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                <span>Premolar #14</span>
+                <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">7.0mm</span>
+              </button>
+              <button data-tooth-action="premolarLeft" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center justify-between border border-slate-700/60">
+                <span>Premolar #24</span>
+                <span class="tooth-dim-span text-[10px] text-blue-400 font-mono">7.0mm</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sample Patient Quick Switch -->
+          <div class="pt-2 border-t border-slate-800 space-y-1.5">
+            <div class="text-[11px] font-semibold text-slate-400">Load Patient Portrait:</div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button data-sample-patient="coachman_master" class="px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 text-blue-300 border border-slate-700 flex items-center gap-1.5 truncate">
+                <i class="fa-solid fa-star text-amber-400 text-[10px]"></i>
+                <span class="truncate">Master Case</span>
+              </button>
+              <button data-sample-patient="female_smile" class="px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1.5 truncate">
+                <i class="fa-solid fa-user-tag text-blue-400 text-[10px]"></i>
+                <span class="truncate">Female Smile</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. TAB: GUIDES & RULERS -->
+        <div id="pane-mobile-guides" class="mobile-pane hidden space-y-3">
+          <div class="text-[11px] font-semibold text-slate-400">Toggle Facial Reference Lines:</div>
+          <div class="space-y-1.5">
+            <button id="m-toggle-midline" class="w-full text-left px-3 py-2 text-xs rounded-xl bg-blue-600 text-white flex items-center justify-between border border-slate-700/60">
+              <span class="flex items-center gap-2"><i class="fa-solid fa-arrows-up-down text-red-400"></i>Facial Midline (Red)</span>
+              <i class="fa-solid fa-eye text-xs"></i>
+            </button>
+            <button id="m-toggle-interpupillary" class="w-full text-left px-3 py-2 text-xs rounded-xl bg-blue-600 text-white flex items-center justify-between border border-slate-700/60">
+              <span class="flex items-center gap-2"><i class="fa-solid fa-arrows-left-right text-blue-400"></i>Interpupillary Line</span>
+              <i class="fa-solid fa-eye text-xs"></i>
+            </button>
+            <button id="m-toggle-commissural" class="w-full text-left px-3 py-2 text-xs rounded-xl bg-slate-800 text-slate-300 flex items-center justify-between border border-slate-700/60">
+              <span class="flex items-center gap-2"><i class="fa-solid fa-minus text-emerald-400"></i>Commissural Line</span>
+              <i class="fa-solid fa-eye text-xs"></i>
+            </button>
+            <button id="m-toggle-smilearc" class="w-full text-left px-3 py-2 text-xs rounded-xl bg-slate-800 text-slate-300 flex items-center justify-between border border-slate-700/60">
+              <span class="flex items-center gap-2"><i class="fa-solid fa-wave-square text-cyan-400"></i>Smile Arc Curve</span>
+              <i class="fa-solid fa-eye text-xs"></i>
+            </button>
+            <button id="m-toggle-goldengrid" class="w-full text-left px-3 py-2 text-xs rounded-xl bg-slate-800 text-slate-300 flex items-center justify-between border border-slate-700/60">
+              <span class="flex items-center gap-2"><i class="fa-solid fa-table-cells text-amber-400"></i>Golden Proportion Grid</span>
+              <i class="fa-solid fa-eye text-xs"></i>
+            </button>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800 space-y-1.5">
+            <div class="text-[11px] font-semibold text-slate-400">Add Clinical PPTX Rulers:</div>
+            <div class="grid grid-cols-2 gap-2">
+              <button data-pptx-tool="ruler20_img" class="px-2.5 py-2 text-xs rounded-xl bg-slate-800 text-emerald-300 border border-slate-700/70 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-ruler"></i>
+                <span>20mm Ruler</span>
+              </button>
+              <button data-pptx-tool="ruler35_img" class="px-2.5 py-2 text-xs rounded-xl bg-slate-800 text-sky-300 border border-slate-700/70 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-ruler-combined"></i>
+                <span>35mm Ruler</span>
+              </button>
+              <button data-pptx-tool="smileArc" class="px-2.5 py-2 text-xs rounded-xl bg-slate-800 text-cyan-300 border border-slate-700/70 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-bezier-curve"></i>
+                <span>Smile Arc</span>
+              </button>
+              <button data-pptx-tool="facialAxis" class="px-2.5 py-2 text-xs rounded-xl bg-slate-800 text-amber-300 border border-slate-700/70 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-arrows-split-up-and-left"></i>
+                <span>Facial Axes</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. TAB: SHADE & OPACITY -->
+        <div id="pane-mobile-shade" class="mobile-pane hidden space-y-3">
+          <div class="text-[11px] font-semibold text-slate-400">Select Enamel Shade:</div>
+          <div class="grid grid-cols-2 gap-2">
+            <button data-shade="bleach" class="shade-selector-btn ring-2 ring-blue-500 border-blue-400 p-2.5 text-xs rounded-xl bg-slate-800 text-slate-200 flex items-center gap-2.5 border border-slate-700">
+              <div class="w-5 h-5 rounded-full bg-white border border-slate-300 shadow-sm"></div>
+              <span>Bleach BL1</span>
+            </button>
+            <button data-shade="a1" class="shade-selector-btn p-2.5 text-xs rounded-xl bg-slate-800 text-slate-200 flex items-center gap-2.5 border border-slate-700">
+              <div class="w-5 h-5 rounded-full bg-amber-50 border border-amber-200 shadow-sm"></div>
+              <span>Shade A1</span>
+            </button>
+            <button data-shade="a2" class="shade-selector-btn p-2.5 text-xs rounded-xl bg-slate-800 text-slate-200 flex items-center gap-2.5 border border-slate-700">
+              <div class="w-5 h-5 rounded-full bg-amber-100 border border-amber-300 shadow-sm"></div>
+              <span>Shade A2</span>
+            </button>
+            <button data-shade="a3" class="shade-selector-btn p-2.5 text-xs rounded-xl bg-slate-800 text-slate-200 flex items-center gap-2.5 border border-slate-700">
+              <div class="w-5 h-5 rounded-full bg-amber-200 border border-amber-400 shadow-sm"></div>
+              <span>Shade A3</span>
+            </button>
+            <button data-shade="outline" class="shade-selector-btn col-span-2 p-2.5 text-xs rounded-xl bg-slate-800 text-slate-200 flex items-center justify-center gap-2 border border-slate-700">
+              <div class="w-4 h-4 rounded-full border-2 border-blue-400 bg-transparent"></div>
+              <span>Wireframe Contour Mode</span>
+            </button>
+          </div>
+
+          <!-- Opacity Slider -->
+          <div class="pt-3 border-t border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-300">
+              <span>Tooth Opacity:</span>
+              <span id="m-opacity-value" class="font-mono text-blue-400 font-bold">85%</span>
+            </div>
+            <input id="m-opacity-slider" type="range" min="15" max="100" value="85" class="w-full accent-blue-500 cursor-pointer h-2 bg-slate-700 rounded-lg" />
+          </div>
+        </div>
+
+        <!-- 4. TAB: INSPECTOR & LAYERS -->
+        <div id="pane-mobile-inspect" class="mobile-pane hidden space-y-3">
+          <div class="bg-slate-800/80 rounded-xl p-3 border border-slate-700/60 space-y-2">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-1.5">
+              <span class="text-xs text-slate-400">Active Element:</span>
+              <span id="m-inspect-name" class="text-xs font-semibold text-slate-100">Select tooth on canvas</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-slate-900/90 p-2 rounded-lg border border-slate-700/40">
+                <div class="text-[9px] uppercase font-semibold text-slate-400">Width</div>
+                <div id="m-inspect-width" class="text-base font-bold text-sky-400 font-mono">-- mm</div>
+              </div>
+              <div class="bg-slate-900/90 p-2 rounded-lg border border-slate-700/40">
+                <div class="text-[9px] uppercase font-semibold text-slate-400">Height</div>
+                <div id="m-inspect-height" class="text-base font-bold text-sky-400 font-mono">-- mm</div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between text-xs pt-1">
+              <span class="text-slate-300">W/H Ratio:</span>
+              <span id="m-inspect-ratio" class="font-bold text-emerald-400 font-mono">-- %</span>
+            </div>
+          </div>
+
+          <!-- Esthetic Guidelines -->
+          <div class="p-2.5 rounded-xl bg-slate-800/60 border border-slate-800 text-xs space-y-1 text-slate-300">
+            <div class="font-semibold text-slate-200 text-[11px] mb-1">Golden Standards:</div>
+            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i>Central Incisor: 78–82% W/H Ratio</div>
+            <div class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-[10px]"></i>Lateral Incisor: 60–70% of Central Width</div>
+          </div>
+        </div>
+
+        <!-- 5. TAB: EXPORT & NATIVE MOBILE SHARE -->
+        <div id="pane-mobile-export" class="mobile-pane hidden space-y-2.5">
+          <!-- Direct Native Share Button (Uses iOS/Android system share sheet) -->
+          <button id="btn-native-share" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 active:scale-95 transition-all">
+            <i class="fa-solid fa-share-nodes text-sm"></i>
+            <span>Share Smile Design (AirDrop / WhatsApp / Files)</span>
+          </button>
+
+          <div class="grid grid-cols-1 gap-2 pt-2">
+            <button id="m-export-jpg" class="w-full text-left p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-3 border border-slate-700">
+              <i class="fa-solid fa-file-image text-emerald-400 text-base w-5 text-center"></i>
+              <div>
+                <div class="font-bold">Download High-DPI JPG</div>
+                <div class="text-[10px] text-slate-400">High-resolution dental portrait</div>
+              </div>
+            </button>
+            <button id="m-export-pdf" class="w-full text-left p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-3 border border-slate-700">
+              <i class="fa-solid fa-file-pdf text-rose-400 text-base w-5 text-center"></i>
+              <div>
+                <div class="font-bold">Export Clinical PDF Report</div>
+                <div class="text-[10px] text-slate-400">Formal A4 sheet with biometric specs</div>
+              </div>
+            </button>
+            <button id="m-export-pptx" class="w-full text-left p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs flex items-center gap-3 border border-slate-700">
+              <i class="fa-solid fa-file-powerpoint text-orange-400 text-base w-5 text-center"></i>
+              <div>
+                <div class="font-bold">Export PowerPoint (.pptx) Deck</div>
+                <div class="text-[10px] text-slate-400">4-slide Visagism presentation</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CALIBRATION MODAL -->
+    <div id="calibration-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
+              <i class="fa-solid fa-ruler text-sm"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-white">Calibration Measurement</h3>
+              <p class="text-[11px] text-slate-400">Convert pixel distance to real-world millimeters</p>
+            </div>
+          </div>
+          <button id="btn-cancel-calib" class="text-slate-500 hover:text-white">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex items-center justify-between bg-slate-800/80 p-3 rounded-xl border border-slate-700/60">
+            <span class="text-xs text-slate-300">Measured Canvas Distance:</span>
+            <span id="calib-pixel-display" class="font-mono text-sm font-bold text-sky-400">120.5 px</span>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Enter Real Clinical Distance (mm):</label>
+            <div class="relative">
+              <input id="calib-mm-input" type="number" step="0.1" value="10.5" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 pr-12" />
+              <span class="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">mm</span>
+            </div>
+          </div>
+
+          <!-- Quick Clinical Reference Presets -->
+          <div class="space-y-1.5">
+            <span class="text-[11px] text-slate-400">Clinical Distance Presets:</span>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button data-value="10.5" class="calib-preset-btn text-left p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700/60 text-xs text-slate-200 transition-colors">
+                <div class="font-semibold text-blue-400">10.5 mm</div>
+                <div class="text-[10px] text-slate-400">Central Incisor Height</div>
+              </button>
+              <button data-value="8.5" class="calib-preset-btn text-left p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700/60 text-xs text-slate-200 transition-colors">
+                <div class="font-semibold text-blue-400">8.5 mm</div>
+                <div class="text-[10px] text-slate-400">Central Incisor Width</div>
+              </button>
+              <button data-value="20.0" class="calib-preset-btn text-left p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700/60 text-xs text-slate-200 transition-colors">
+                <div class="font-semibold text-blue-400">20.0 mm</div>
+                <div class="text-[10px] text-slate-400">Clinical Scale Bar</div>
+              </button>
+              <button data-value="63.0" class="calib-preset-btn text-left p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700/60 text-xs text-slate-200 transition-colors">
+                <div class="font-semibold text-blue-400">63.0 mm</div>
+                <div class="text-[10px] text-slate-400">Interpupillary Distance</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+          <button onclick="document.getElementById('btn-cancel-calib').click()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
+            Cancel
+          </button>
+          <button id="btn-confirm-calib" class="px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all">
+            Apply Calibration
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="app-toast" class="fixed bottom-5 right-5 z-50 hidden transition-all duration-300"></div>
+
+    <!-- MODULAR SCRIPTS (Can be opened in any browser directly without build tools) -->
+    <script src="./tooth-library.js"></script>
+    <script src="./sample-data.js"></script>
+    <script src="./app.js"></script>
+    <script src="./clinical-copilot.js"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+      }
+    </script>
+  </body>
+</html>

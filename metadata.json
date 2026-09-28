@@ -1,0 +1,7 @@
+{
+  "name": "Dentiscan DSD Studio",
+  "description": "Professional 2D Digital Smile Design (DSD) PWA studio with tooth library, 2-click calibration, facial reference lines, and PPTX/PDF/JPG clinical exports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
